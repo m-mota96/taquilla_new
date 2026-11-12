@@ -1,0 +1,57 @@
+a {
+    text-decoration: none;
+}
+.bold {
+    font-weight: bold;
+}
+.fw-n {
+    font-weight: normal;
+}
+.pointer {
+    cursor: pointer;
+}
+.height-f {
+    height: fit-content;
+}
+a:hover {
+    text-decoration: underline;
+}
+.card-ticket {
+    background-image: url('../media/ticket.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+.w-15 {
+    width: 15%;
+}
+.w-30 {
+    width: 30%;
+}
+.w-20 {
+    width: 20%;
+}
+
+.btn-totalSales {
+    border-radius: 1.25rem !important;
+    background-color: #C9F7F5 !important;
+}
+.text-btn-totalSales {
+    color: #22c7bf;
+}
+.btn-totalPending {
+    border-radius: 1.25rem !important;
+    background-color: #FFF4DE !important;
+}
+.text-btn-totalPending {
+    color: #ffa800;
+}
+.btn-totalExpired {
+    border-radius: 1.25rem !important;
+    background-color: #FFE2E5 !important;
+}
+.text-btn-totalExpired {
+    color: #f64e60;
+}
+.hidden {
+    display: none;
+}
