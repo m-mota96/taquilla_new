@@ -29,9 +29,17 @@ class CashierController extends Controller {
         if (!empty($event)) {
             $folios = Folio::with(['ticket'])->addSelect(['ticket_name' => Ticket::select('name')
             ->whereColumn('ticket_id', 'tickets.id')
-            ])->where('user_id', Auth::user()->id)->where('status', 1)->orderBy('ticket_name')->get();
+            ])->where('user_id', Auth::user()->id)->where('status', 1)
+            // Solo folios de boletos de este evento (la cajera puede tener folios de otros eventos)
+            ->whereHas('ticket', function($query) use($event) {
+                $query->where('event_id', $event->id);
+            })->orderBy('ticket_name')->get();
             $session = Auth::user();
-            $user = User::with(['box', 'cash'])->where('id', $session->id)->first();
+            // Caja chica y efectivo de ESTE evento (igual que el corte de caja)
+            $user = User::with([
+                'box' => function($query) use($event) { $query->where('event_id', $event->id); },
+                'cash' => function($query) use($event) { $query->where('event_id', $event->id); },
+            ])->where('id', $session->id)->first();
 
             $perPerson = $event->isPerPersonMode();
             $positions = $perPerson
@@ -75,7 +83,7 @@ class CashierController extends Controller {
 
         // Se valida todo ANTES de escribir: en producción folios, sales, customers, etc. son MyISAM
         // y un DB::rollback() no deshace lo que ya se guardó en esas tablas.
-        $error = $this->validateFoliosAndPay($request);
+        $error = $this->validateFoliosAndPay($request, $event);
         if ($error) {
             return response()->json(['error' => true, 'msj' => $error], 202);
         }
@@ -228,7 +236,7 @@ class CashierController extends Controller {
      *
      * @return string|null  mensaje de error o null si todo está bien
      */
-    private function validateFoliosAndPay(Request $request)
+    private function validateFoliosAndPay(Request $request, Event $event)
     {
         $totalSale = 0;
         foreach ((array) $request->folios as $f) {
@@ -239,6 +247,9 @@ class CashierController extends Controller {
             $folio = Folio::with(['ticket'])->where('id', $f['id'] ?? 0)->first();
             if (empty($folio)) {
                 return 'Uno de los folios ya no existe. Recargue la página.';
+            }
+            if ($folio->user_id != Auth::user()->id || $folio->ticket->event_id != $event->id) {
+                return 'Uno de los folios no está asignado a usted en este evento. Recargue la página.';
             }
             if (($folio->sold + $quantity) > $folio->quantity) {
                 return 'Excedió la cantidad disponible de folios de <br><b>'.$folio->ticket->name.' Folios: '.$folio->initial_folio.'-'.$folio->final_folio.'</b>';
