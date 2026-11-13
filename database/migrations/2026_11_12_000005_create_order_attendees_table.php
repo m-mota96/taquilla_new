@@ -16,7 +16,8 @@ return new class extends Migration
         Schema::create('order_attendees', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('ticket_id')->constrained();
+            // Sin llave foránea: en producción tickets es MyISAM y no las admite
+            $table->unsignedBigInteger('ticket_id')->index();
             $table->foreignId('position_id')->constrained();
             $table->string('name');
             $table->string('email');

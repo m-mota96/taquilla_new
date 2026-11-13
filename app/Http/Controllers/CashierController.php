@@ -73,6 +73,13 @@ class CashierController extends Controller {
             }
         }
 
+        // Se valida todo ANTES de escribir: en producción folios, sales, customers, etc. son MyISAM
+        // y un DB::rollback() no deshace lo que ya se guardó en esas tablas.
+        $error = $this->validateFoliosAndPay($request);
+        if ($error) {
+            return response()->json(['error' => true, 'msj' => $error], 202);
+        }
+
         DB::beginTransaction();
         try {
             // Modo 1: un solo cliente por compra (comportamiento original)
@@ -130,19 +137,6 @@ class CashierController extends Controller {
                         }
                     }
                 }
-            }
-
-            // Efectivo: "Pago con" es obligatorio y debe cubrir el total calculado en el servidor.
-            // Tarjeta: "Pago con" es opcional y no se valida.
-            $pay = trim((string) $request->pay);
-            if ($request->payment_method === 'cash' && (!ctype_digit($pay) || intval($pay) < $totalSale)) {
-                DB::rollback();
-                return response()->json([
-                    'error' => true,
-                    'msj' => $pay === ''
-                        ? 'Ingrese con cuánto paga el cliente en <b>Pago con</b>'
-                        : 'El pago no puede ser menor al total de <b>$'.number_format($totalSale).'.00</b>'
-                ], 202);
             }
 
             // Orden padre (ambos modos)
@@ -226,6 +220,40 @@ class CashierController extends Controller {
             'badges' => $badges,
             'badgesMissing' => $badgesMissing
         ]);
+    }
+
+    /**
+     * Revisa disponibilidad de folios y el "Pago con" sin escribir nada.
+     * Efectivo: "Pago con" obligatorio y no menor al total calculado aquí. Tarjeta: opcional.
+     *
+     * @return string|null  mensaje de error o null si todo está bien
+     */
+    private function validateFoliosAndPay(Request $request)
+    {
+        $totalSale = 0;
+        foreach ((array) $request->folios as $f) {
+            $quantity = intval($f['quantity'] ?? 0);
+            if ($quantity <= 0) {
+                continue;
+            }
+            $folio = Folio::with(['ticket'])->where('id', $f['id'] ?? 0)->first();
+            if (empty($folio)) {
+                return 'Uno de los folios ya no existe. Recargue la página.';
+            }
+            if (($folio->sold + $quantity) > $folio->quantity) {
+                return 'Excedió la cantidad disponible de folios de <br><b>'.$folio->ticket->name.' Folios: '.$folio->initial_folio.'-'.$folio->final_folio.'</b>';
+            }
+            $totalSale += $quantity * $folio->ticket->price;
+        }
+
+        $pay = trim((string) $request->pay);
+        if ($request->payment_method === 'cash' && (!ctype_digit($pay) || intval($pay) < $totalSale)) {
+            return $pay === ''
+                ? 'Ingrese con cuánto paga el cliente en <b>Pago con</b>'
+                : 'El pago no puede ser menor al total de <b>$'.number_format($totalSale).'.00</b>';
+        }
+
+        return null;
     }
 
     /**

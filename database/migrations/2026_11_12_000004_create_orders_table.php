@@ -15,9 +15,10 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('event_id')->constrained();
-            $table->foreignId('user_id')->constrained()->comment('Cajero/a que registro la venta');
-            $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete()
+            // Sin llaves foráneas: en producción events, users y customers son MyISAM y no las admiten
+            $table->unsignedBigInteger('event_id')->index();
+            $table->unsignedBigInteger('user_id')->index()->comment('Cajero/a que registro la venta');
+            $table->unsignedBigInteger('customer_id')->nullable()->index()
                 ->comment('Solo en modo 1 (un registro por compra)');
             $table->string('payment_method');
             $table->integer('total');

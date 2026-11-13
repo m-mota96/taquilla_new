@@ -15,7 +15,8 @@ return new class extends Migration
     {
         Schema::create('event_settings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('event_id')->unique()->constrained()->cascadeOnDelete();
+            // Sin llave foránea: en producción events es MyISAM y no las admite
+            $table->unsignedBigInteger('event_id')->unique();
             $table->unsignedTinyInteger('sale_mode')->default(1)
                 ->comment('[1:un registro por compra, 2:un registro por persona]');
             $table->unsignedTinyInteger('event_type')->nullable()
