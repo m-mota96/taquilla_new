@@ -29,10 +29,19 @@ class HomeController extends Controller {
     public function index() {
         $session = Auth::user();
         $user = User::where('id', $session->id)->first();
-        $role = $user->getRoleNames()[0];
+        $role = $user->getRoleNames()->first();
+
+        if (empty($role)) {
+            Auth::logout();
+            return redirect()->route('login')->withErrors([
+                'user' => 'El usuario '.$user->user.' no tiene un rol asignado. Contacte al administrador.'
+            ]);
+        }
+
         switch ($role) {
             case 'customer':
-                    $events = Event::where('user_id', $session->id)->get();
+                $events = Event::where('user_id', $session->id)->get();
+                // dd('customer', $events);
                     foreach ($events as $key => $e) {
                         $e->initial_date_es = substr($e->initial_date, 8, 2).' de '.DateFormatEs::nameMonth($e->initial_date, true).'. de '.substr($e->initial_date, 0, 4);
                         $e->final_date_es = substr($e->final_date, 8, 2).' de '.DateFormatEs::nameMonth($e->final_date, true).'. de '.substr($e->final_date, 0, 4);

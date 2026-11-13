@@ -7,7 +7,7 @@
     <div class="container-fluid mt-5">
         <div class="row">
             <input type="hidden" id="event_id" value="{{$event->id}}">
-            <div class="col-xl-6">
+            <div class="{{$perPerson ? 'col-xl-9' : 'col-xl-6'}}">
                 <div class="card p-4">
                     <table class="table table-striped">
                         <thead>
@@ -25,6 +25,7 @@
                                     <td>
                                         {{$f->ticket->name}}
                                         <input class="folio_id" type="hidden" value="{{$f->id}}">
+                                        <input class="ticket_id" type="hidden" value="{{$f->ticket->id}}" data-name="{{$f->ticket->name}}">
                                     </td>
                                     <td class="text-center">
                                         ${{$f->ticket->price}}
@@ -47,7 +48,15 @@
                         </tbody>
                     </table>
                 </div>
+                @if ($perPerson)
+                    <div class="card p-4 mt-2">
+                        <h5 class="w-100 text-center mb-1">Datos de los asistentes</h5>
+                        <p class="text-center text-secondary small mb-3" id="attendeesEmpty">Seleccione boletos para capturar los datos de cada persona.</p>
+                        <div class="row" id="attendeesForms"></div>
+                    </div>
+                @endif
             </div>
+            @if (!$perPerson)
             <div class="col-xl-3">
                 <div class="card p-4" id="divClient">
                     <h5 class="w-100 text-center mb-3">Datos del Cliente</h5>
@@ -59,6 +68,7 @@
                     <input class="form-control form-control-sm mb-3" type="text" id="phone">
                 </div>
             </div>
+            @endif
             <div class="col-xl-3">
                 <div class="card p-4">
                     <h5 class="w-100 text-center mb-3">Resúmen del pago</h5>
@@ -91,6 +101,15 @@
                     <input type="hidden" id="cashSale" value="{{!empty($user->cash) ? $user->cash->cash : 0}}">
                     <button class="btn btn-primary btn-sm w-100 mt-2" onclick="modalCuts()">Hacer corte de caja</button>
                 </div>
+                @if ($perPerson)
+                    <div class="card mt-2 p-4">
+                        <h5 class="fw-n mb-1">Impresora de gafetes</h5>
+                        <p class="text-secondary small mb-2">Cargue los logos una vez al encender o cambiar la impresora.</p>
+                        <button class="btn btn-outline-primary btn-sm w-100" onclick="loadBadgeLogos()">
+                            <i class="fa-solid fa-image"></i> Cargar logos
+                        </button>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
@@ -162,16 +181,27 @@
     </div>
 @endsection
 @section('scripts')
+    @if ($perPerson)
+        <script src="{{asset('js/BrowserPrint-3.1.250.min.js')}}"></script>
+        <script src="{{asset('js/badge-zpl.js')}}"></script>
+        <script src="{{asset('js/patrocinadores-comvet-zpl.js')}}"></script>
+        <script src="{{asset('js/badge-print.js')}}"></script>
+    @endif
     <script>
+        const PER_PERSON = @json($perPerson);
+        const POSITIONS = @json($positions);
+
         function registerSale() {
-            $(`#name`).removeClass('border border-danger');
-            if ($(`#name`).val() == '') {
-                $(`#name`).addClass('border border-danger');
-                Swal.fire({
-                    icon: 'error',
-                    text: 'El nombre del cliente es obligatorio'
-                });
-                return;
+            if (!PER_PERSON) {
+                $(`#name`).removeClass('border border-danger');
+                if ($(`#name`).val() == '') {
+                    $(`#name`).addClass('border border-danger');
+                    Swal.fire({
+                        icon: 'error',
+                        text: 'El nombre del cliente es obligatorio'
+                    });
+                    return;
+                }
             }
             if ($('input:radio[name=payment_method]:checked').val() == undefined) {
                 Swal.fire({
@@ -210,7 +240,52 @@
                 return;
             }
 
+            // Efectivo: "Pago con" obligatorio y no menor al total. Tarjeta: opcional.
+            $('#pay').removeClass('border border-danger');
+            var pay = $.trim($('#pay').val());
+            if (data.payment_method == 'cash') {
+                if (pay == '') {
+                    $('#pay').addClass('border border-danger').focus();
+                    Swal.fire({
+                        icon: 'error',
+                        text: 'Ingrese con cuánto paga el cliente en "Pago con"'
+                    });
+                    return;
+                }
+                if (parseInt(pay) < parseInt($('#total').val())) {
+                    $('#pay').addClass('border border-danger').focus();
+                    Swal.fire({
+                        icon: 'error',
+                        text: `El pago no puede ser menor al total de $${formatMoney($('#total').val())}`
+                    });
+                    return;
+                }
+            }
+            data.pay = pay == '' ? '' : parseInt(pay);
+
+            if (PER_PERSON) {
+                var collected = collectAttendees();
+                if (collected.errors.length > 0) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Revise los campos marcados en rojo',
+                        html: collected.errors.join('<br>')
+                    });
+                    return;
+                }
+                data.attendees = collected.attendees;
+            }
+
             $('#registerSale').attr('disabled', true);
+            // Loader al centro mientras se procesa. Lo reemplaza la alerta de éxito/error.
+            Swal.fire({
+                title: 'Procesando venta...',
+                text: 'No cierre ni recargue la página',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
             $.ajax({
                 url: $(`#URL`).val()+'registerSale',
                 method: 'POST',
@@ -219,6 +294,8 @@
                     $('#registerSale').attr('disabled', false);
                     if (res.error == false) {
                         $(`#divClient .form-control`).val('');
+                        $('#attendeesForms').empty();
+                        $('#attendeesEmpty').removeClass('hidden');
                         $('#pay').val('');
                         $('input:radio[name=payment_method]:checked').prop('checked', false);
                         $(`#change`).text('0.00');
@@ -238,10 +315,14 @@
                                 $(`#tr${d.id} .available`).val(parseInt(d.quantity) - parseInt(d.sold));
                             }
                         });
-                        Swal.fire({
-                            icon: 'success',
-                            text: 'La venta se registro con éxito'
-                        });
+                        if (PER_PERSON) {
+                            finishPerPersonSale(res);
+                        } else {
+                            Swal.fire({
+                                icon: 'success',
+                                text: 'La venta se registro con éxito'
+                            });
+                        }
                     } else {
                         Swal.fire({
                             icon: 'error',
@@ -251,7 +332,10 @@
                 },
                 error: ()=> {
                     $('#registerSale').attr('disabled', false);
-                    console.log('ERROR');
+                    Swal.fire({
+                        icon: 'error',
+                        text: 'Ocurrió un error al registrar la venta. Verifique su conexión e intente de nuevo.'
+                    });
                 }
             });
         }
@@ -317,6 +401,51 @@
             });
         });
 
+        function escapeHtml(text) {
+            return $('<div>').text(text == null ? '' : text).html();
+        }
+
+        /**
+         * Modo 2: después de registrar la venta imprime los gafetes y muestra un resumen.
+         */
+        async function finishPerPersonSale(res) {
+            var icon = 'success';
+            var messages = [];
+
+            if (res.conferenceFailed > 0) {
+                icon = 'warning';
+                messages.push(`<b>${res.conferenceFailed}</b> registro(s) no se pudieron enviar a conferencias. El organizador puede reenviarlos desde Configuraciones.`);
+            }
+
+            if (res.badges.length > 0) {
+                var printed = await printBadges(res.badges);
+                if (printed.failed > 0) {
+                    icon = 'warning';
+                    messages.push(`No se imprimieron <b>${printed.failed}</b> de ${res.badges.length} gafete(s): ${escapeHtml(printed.error)}<br>Puede reimprimirlos desde "Ver ventas".`);
+                } else {
+                    messages.push(`Se imprimieron <b>${printed.ok}</b> gafete(s).`);
+                }
+            }
+
+            if (res.badgesMissing.length > 0) {
+                icon = 'warning';
+                messages.push(`Sin gafete por ahora (aún no están en conferencias): <b>${res.badgesMissing.map(escapeHtml).join(', ')}</b>`);
+            }
+
+            Swal.fire({
+                icon: icon,
+                title: 'La venta se registró con éxito',
+                html: messages.join('<br><br>')
+            });
+        }
+
+        // Con tarjeta "Pago con" es opcional: quita la marca roja si la tenía
+        $('input:radio[name=payment_method]').change(function() {
+            if ($(this).val() == 'card') {
+                $('#pay').removeClass('border border-danger');
+            }
+        });
+
         $(`#pay`).keyup(function() {
             if ($(this).val() == '' || parseInt($(this).val()) <= parseInt($(`#total`).val()) || parseInt($(`#total`).val()) == 0) {
                 $(`#change`).text('0.00');
@@ -358,6 +487,155 @@
             });
             $(`#txtTotal`).text(`${formatMoney(total)}`);
             $(`#total`).val(total);
+
+            if (PER_PERSON) {
+                renderAttendees();
+            }
+        }
+
+        /**
+         * Modo "un registro por persona": mantiene un formulario por cada boleto seleccionado,
+         * agrupados por tipo de boleto. Conserva lo ya capturado al subir o bajar cantidades.
+         */
+        function renderAttendees() {
+            // Cantidad por tipo de boleto (varios folios pueden ser del mismo boleto)
+            var tickets = [];
+            $('#tbodySale tr').each(function() {
+                var ticket = $(this).find('.ticket_id');
+                var quantity = parseInt($(this).find('.quantity').val()) || 0;
+                var id = ticket.val();
+                var existing = tickets.find(t => t.id == id);
+                if (existing) {
+                    existing.quantity += quantity;
+                } else {
+                    tickets.push({ id: id, name: ticket.data('name'), quantity: quantity });
+                }
+            });
+
+            var container = $('#attendeesForms');
+            tickets.forEach(t => {
+                var forms = container.find(`.attendee-form[data-ticket="${t.id}"]`);
+                // Quita los últimos formularios si bajó la cantidad
+                for (var i = forms.length; i > t.quantity; i--) {
+                    forms.eq(i - 1).remove();
+                }
+                // Agrega formularios si subió la cantidad, después del último de su tipo
+                for (var j = forms.length; j < t.quantity; j++) {
+                    var form = buildAttendeeForm(t.id, t.name);
+                    var last = container.find(`.attendee-form[data-ticket="${t.id}"]`).last();
+                    if (last.length) {
+                        last.after(form);
+                    } else {
+                        container.append(form);
+                    }
+                }
+                // Numeración "1 de N"
+                container.find(`.attendee-form[data-ticket="${t.id}"]`).each(function(i) {
+                    $(this).find('.attendee-number').text(`${i + 1} de ${t.quantity}`);
+                });
+            });
+
+            $('#attendeesEmpty').toggleClass('hidden', container.children().length > 0);
+        }
+
+        function buildAttendeeForm(ticketId, ticketName) {
+            var col = $('<div class="col-md-6 col-xxl-4 mb-3 attendee-form"></div>').attr('data-ticket', ticketId);
+            var card = $('<div class="border rounded p-3 h-100 bg-light"></div>');
+            var title = $('<h6 class="mb-3"></h6>');
+            title.append($('<i class="fa-solid fa-ticket text-primary me-1"></i>'));
+            title.append($('<b></b>').text(ticketName));
+            title.append(' ');
+            title.append($('<span class="text-secondary fw-n attendee-number"></span>'));
+
+            var select = $('<select class="form-select form-select-sm mb-2 att-position"></select>');
+            select.append('<option value="">Cargo...</option>');
+            POSITIONS.forEach(p => select.append($('<option></option>').val(p.id).text(p.name)));
+
+            var phone = $('<div class="input-group input-group-sm mb-2"></div>')
+                .append('<input class="form-control att-code" type="text" value="+52" maxlength="5" inputmode="tel" style="max-width: 4.5rem" title="Código de país">')
+                .append('<input class="form-control att-phone" type="text" placeholder="XXX XXX XXXX" maxlength="12" inputmode="numeric" title="Teléfono (10 dígitos)">');
+
+            card.append(title)
+                .append('<input class="form-control form-control-sm mb-2 att-name" type="text" placeholder="Nombre" maxlength="255">')
+                .append('<input class="form-control form-control-sm mb-2 att-email" type="email" placeholder="Correo" maxlength="255">')
+                .append(phone)
+                .append(select);
+            return col.append(card);
+        }
+
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+
+        // Teléfono: solo dígitos, máximo 10, con espacios automáticos XXX XXX XXXX
+        function formatPhone(value) {
+            var d = value.replace(/\D/g, '').substring(0, 10);
+            if (d.length > 6) return `${d.substring(0, 3)} ${d.substring(3, 6)} ${d.substring(6)}`;
+            if (d.length > 3) return `${d.substring(0, 3)} ${d.substring(3)}`;
+            return d;
+        }
+
+        // Código de país: siempre inicia con + y lleva de 1 a 4 dígitos
+        function formatCountryCode(value) {
+            return '+' + value.replace(/\D/g, '').substring(0, 4);
+        }
+
+        $('#attendeesForms').on('input', '.att-phone', function() {
+            $(this).val(formatPhone($(this).val()));
+        });
+        $('#attendeesForms').on('input', '.att-code', function() {
+            $(this).val(formatCountryCode($(this).val()));
+        });
+        // Al salir del campo se valida y se marca en rojo si está mal
+        $('#attendeesForms').on('blur', '.att-email, .att-phone, .att-code', function() {
+            var value = $.trim($(this).val());
+            var valid = true;
+            if ($(this).hasClass('att-email')) valid = value == '' || EMAIL_REGEX.test(value);
+            if ($(this).hasClass('att-phone')) valid = value == '' || value.replace(/\D/g, '').length == 10;
+            if ($(this).hasClass('att-code')) valid = /^\+\d{1,4}$/.test(value);
+            $(this).toggleClass('border border-danger', !valid);
+        });
+
+        /**
+         * Devuelve { attendees, errors }. Marca en rojo los campos con error.
+         */
+        function collectAttendees() {
+            var attendees = [];
+            var errors = new Set();
+
+            $('#attendeesForms .attendee-form').each(function() {
+                var form = $(this);
+                var fields = {
+                    name: form.find('.att-name'),
+                    email: form.find('.att-email'),
+                    country_code: form.find('.att-code'),
+                    phone: form.find('.att-phone'),
+                    position_id: form.find('.att-position')
+                };
+                Object.values(fields).forEach(f => f.removeClass('border border-danger'));
+
+                var v = {};
+                Object.keys(fields).forEach(key => v[key] = $.trim(fields[key].val()));
+                var digits = v.phone.replace(/\D/g, '');
+
+                var fail = (key, msg) => { fields[key].addClass('border border-danger'); errors.add(msg); };
+                if (v.name == '') fail('name', 'El nombre es obligatorio.');
+                if (v.email == '') fail('email', 'El correo es obligatorio.');
+                else if (!EMAIL_REGEX.test(v.email)) fail('email', 'Hay un correo con formato inválido.');
+                if (!/^\+\d{1,4}$/.test(v.country_code)) fail('country_code', 'El código de país debe ser + y de 1 a 4 dígitos (ej. +52).');
+                if (digits == '') fail('phone', 'El teléfono es obligatorio.');
+                else if (digits.length != 10) fail('phone', 'El teléfono debe tener exactamente 10 dígitos.');
+                if (v.position_id == '') fail('position_id', 'El cargo es obligatorio.');
+
+                attendees.push({
+                    ticket_id: form.data('ticket'),
+                    name: v.name,
+                    email: v.email,
+                    country_code: v.country_code,
+                    phone: digits,
+                    position_id: v.position_id
+                });
+            });
+
+            return { attendees: attendees, errors: Array.from(errors) };
         }
 
         function soloNumeros(e) {

@@ -16,6 +16,7 @@
     <!-- Scripts -->
     {{-- @vite(['resources/sass/app.scss', 'resources/js/app.js']) --}}
     <link rel="stylesheet" href="{{asset('css/bootstrap5.3.0.min.css')}}">
+    <link rel="stylesheet" href="{{asset('fontawesome6.4.0/css/all.css')}}">
     <script src="{{asset('js/bootstrap5.3.0.bundle.min.js')}}"></script>
 </head>
 <body>

@@ -29,11 +29,15 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/estadisticas/{event_id}', [App\Http\Controllers\CustomerController::class, 'stats'])->name('estadisticas');
     Route::get('/caja_chica/{event_id}', [App\Http\Controllers\CustomerController::class, 'boxes'])->name('caja_chica');
     Route::get('/cortes_de_caja/{event_id}', [App\Http\Controllers\CustomerController::class, 'cuts'])->name('cortes_de_caja');
+    Route::get('/configuraciones/{event_id}', [App\Http\Controllers\EventSettingController::class, 'edit'])->name('configuraciones');
+    Route::post('/configuraciones/{event_id}', [App\Http\Controllers\EventSettingController::class, 'update'])->name('configuraciones.guardar');
+    Route::post('/configuraciones/{event_id}/reenviar', [App\Http\Controllers\EventSettingController::class, 'resendConferences'])->name('configuraciones.reenviar');
 });
 
 Route::middleware(['auth', 'role:cashier'])->group(function () {
     Route::get('/venta/{event_id}', [App\Http\Controllers\CashierController::class, 'sale'])->name('venta');
     Route::get('/ver_ventas/{event_id}', [App\Http\Controllers\CashierController::class, 'viewSales'])->name('ver_ventas');
+    Route::post('/viewAttendees', [App\Http\Controllers\CashierController::class, 'extractAttendees']);
 });
 
 Route::middleware(['auth', 'role:admin_change_center'])->group(function () {

@@ -37,4 +37,14 @@ class LoginController extends Controller
     {
         $this->middleware('guest')->except('logout');
     }
+
+    /**
+     * Campo usado para autenticar (la tabla users no tiene columna email).
+     *
+     * @return string
+     */
+    public function username()
+    {
+        return 'user';
+    }
 }

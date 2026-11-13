@@ -24,6 +24,9 @@
                 <li class="nav-item">
                     <a class="nav-link text-white me-1" aria-current="page" href="{{route('cortes_de_caja', $event->id)}}"><i class="fa-solid fa-box-tissue"></i> Cortes de caja</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white me-1" aria-current="page" href="{{route('configuraciones', $event->id)}}"><i class="fa-solid fa-gear"></i> Configuraciones</a>
+                </li>
                 {{-- <li class="nav-item">
                 <a class="nav-link text-white" href="#">Link</a>
                 </li>
