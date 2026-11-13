@@ -54,8 +54,15 @@ async function printBadges(badges) {
 /**
  * Carga la imagen de patrocinadores en la memoria de la impresora (R:PATROCINADORES.GRF).
  * Igual que "cargar logos" de conferencias. Se hace una vez por impresora.
+ *
+ * @param {string} imageZpl  imagen GRF del tipo de evento (patrocinadoresWfZPL / patrocinadoresComvetZPL)
  */
-async function loadBadgeLogos() {
+async function loadBadgeLogos(imageZpl) {
+    if (!imageZpl) {
+        Swal.fire({ icon: 'error', title: 'Error al cargar los logos', text: 'No se encontró la imagen de logos de este evento. Recargue la página.' });
+        return;
+    }
+
     Swal.fire({
         title: 'Cargando logos en la impresora...',
         allowOutsideClick: false,
@@ -65,7 +72,7 @@ async function loadBadgeLogos() {
     });
 
     try {
-        var saveZPL = "^XA\n" + "~DG" + patrocinadoresComvetZPL + "^XZ\n";
+        var saveZPL = "^XA\n" + "~DG" + imageZpl + "^XZ\n";
         await printZPL(saveZPL);
         Swal.fire({ icon: 'success', text: 'Logos cargados correctamente' });
     } catch (error) {

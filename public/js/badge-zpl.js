@@ -1,7 +1,8 @@
-// Impresión de gafetes en Zebra (ZPL). Copiado sin cambios de frontend-conferences:
+// Impresión de gafetes en Zebra (ZPL). Copiado de frontend-conferences:
 //   src/utils/zplTemplates.js  -> badge90x150ZPL
 //   src/utils/printZpl.js      -> printZPL
-// Si cambias el diseño del gafete en conferencias, vuelve a copiarlo aquí para que salgan iguales.
+// Única diferencia con conferencias: los logos van 5 mm más arriba (ver LOGOS_UP).
+// Si cambias el diseño del gafete en conferencias, vuelve a copiarlo aquí conservando ese ajuste.
 // Requiere BrowserPrint-3.1.250.min.js y la app Zebra Browser Print instalada en la PC.
 
 window.badge90x150ZPL =({ name, occupation = '', ticket_id, ticket_name = '' }) => {
@@ -86,7 +87,10 @@ window.badge90x150ZPL =({ name, occupation = '', ticket_id, ticket_name = '' }) 
     const qrY = Math.round(textAboveQrBottom + (occupationY - textAboveQrBottom - qrSize) / 2);
 
     const occupationBlockHeight = (40 * 2) + 25;
-    const imageY = occupationY + occupationBlockHeight + 20;
+    // [Taquilla] Los logos van 5 mm (40 puntos) más arriba que en conferencias cuando la ocupación
+    // cabe en un renglón (~31 caracteres a 40 pt). Con 2 renglones se quedan donde estaban para no encimarse.
+    const LOGOS_UP = occupationText.length <= 31 ? 40 : 0;
+    const imageY = occupationY + occupationBlockHeight + 20 - LOGOS_UP;
 
     const labelWidth = 720;
     const imageWidth = 608;  // 76 bytes × 8 bits

@@ -19,6 +19,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Logos de patrocinadores del gafete (por tipo de evento)
+    |--------------------------------------------------------------------------
+    |
+    | "Cargar logos" manda a la impresora la imagen del tipo de evento.
+    | script: archivo en public/  |  var: variable global que define ese archivo.
+    | Para cambiar una imagen se regenera su .js (PNG de 608 px de ancho).
+    |
+    */
+
+    'badge_logos' => [
+        1 => ['script' => 'js/patrocinadores-wf-zpl.js',     'var' => 'patrocinadoresWfZPL'],
+        2 => ['script' => 'js/patrocinadores-comvet-zpl.js', 'var' => 'patrocinadoresComvetZPL'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | API de conferencias
     |--------------------------------------------------------------------------
     |

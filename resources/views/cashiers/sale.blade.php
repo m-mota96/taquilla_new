@@ -105,9 +105,13 @@
                     <div class="card mt-2 p-4">
                         <h5 class="fw-n mb-1">Impresora de gafetes</h5>
                         <p class="text-secondary small mb-2">Cargue los logos una vez al encender o cambiar la impresora.</p>
-                        <button class="btn btn-outline-primary btn-sm w-100" onclick="loadBadgeLogos()">
-                            <i class="fa-solid fa-image"></i> Cargar logos
-                        </button>
+                        @if ($badgeLogos)
+                            <button class="btn btn-outline-primary btn-sm w-100" onclick="loadBadgeLogos(window['{{ $badgeLogos['var'] }}'])">
+                                <i class="fa-solid fa-image"></i> Cargar logos {{ $badgeLogosName }}
+                            </button>
+                        @else
+                            <p class="text-danger small mb-0">Este tipo de evento no tiene logos configurados.</p>
+                        @endif
                     </div>
                 @endif
             </div>
@@ -184,7 +188,9 @@
     @if ($perPerson)
         <script src="{{asset('js/BrowserPrint-3.1.250.min.js')}}"></script>
         <script src="{{asset('js/badge-zpl.js')}}"></script>
-        <script src="{{asset('js/patrocinadores-comvet-zpl.js')}}"></script>
+        @if ($badgeLogos)
+            <script src="{{asset($badgeLogos['script'])}}"></script>
+        @endif
         <script src="{{asset('js/badge-print.js')}}"></script>
     @endif
     <script>

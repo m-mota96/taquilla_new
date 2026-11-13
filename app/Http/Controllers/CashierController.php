@@ -46,9 +46,15 @@ class CashierController extends Controller {
                 ? Position::where('event_type', $event->setting->event_type)->orderBy('id')->get(['id', 'name'])
                 : collect();
 
+            // Logos del gafete según el tipo de evento (WF / COMVET)
+            $eventType = $perPerson ? $event->setting->event_type : null;
+            $badgeLogos = $perPerson ? config('taquilla.badge_logos.'.$eventType) : null;
+            $badgeLogosName = $perPerson ? config('taquilla.event_types.'.$eventType) : null;
+
             return view('cashiers.sale')->with([
                 'event' => $event, 'user' => $user, 'folios' => $folios,
                 'perPerson' => $perPerson, 'positions' => $positions,
+                'badgeLogos' => $badgeLogos, 'badgeLogosName' => $badgeLogosName,
             ]);
         } else {
             return redirect('home');
